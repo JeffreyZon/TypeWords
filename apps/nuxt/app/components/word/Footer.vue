@@ -12,6 +12,7 @@ import StageProgress from '~/components/StageProgress.vue'
 import { ShortcutKey, WordPracticeMode, WordPracticeStage } from '~/types/enum'
 import { WordPracticeModeNameMap, WordPracticeModeStageMap, WordPracticeStageNameMap } from '~/config/env'
 import { useI18n } from 'vue-i18n'
+// import { onKeydown } from '@vueuse/core' // [修改点1：引入键盘监听]
 
 const statStore = usePracticeStore()
 const { t: $t } = useI18n()
@@ -33,6 +34,30 @@ const emit = defineEmits<{
 }>()
 
 let practiceData = inject<PracticeData>('practiceData')
+
+// [修复版：原生 JS 快捷键监听]
+const handleShortcut = (e: KeyboardEvent) => {
+  // 判断是否按下了 Alt + N (兼容大小写)
+  if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+    if (settingStore.wordPracticeMode !== WordPracticeMode.Free) {
+      e.preventDefault()
+      emit('skipStep')
+      console.log('触发了快捷键：Alt + N (跳到下一阶段)')
+    }
+  }
+}
+
+// 页面加载时挂载监听器
+onMounted(() => {
+  window.addEventListener('keydown', handleShortcut)
+})
+
+// 页面卸载时移除监听器（防止内存泄漏）
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleShortcut)
+})
+
+
 
 function format(val: number, suffix: string = '', check: number = -1) {
   return val === check ? '-' : val + suffix
@@ -228,7 +253,6 @@ const stages = $computed(() => {
             <div class="name">{{ status }}</div>
           </div>
           <div class="row">
-            <!--            <div class="num">{{ statStore.spend }}分钟</div>-->
             <div class="num">{{ Math.floor(statStore.spend / 1000 / 60) }}{{ $t('minutes') }}</div>
             <div class="line"></div>
             <div class="name">{{ $t('time') }}</div>
@@ -252,7 +276,7 @@ const stages = $computed(() => {
           <BaseIcon
             v-if="settingStore.wordPracticeMode !== WordPracticeMode.Free"
             @click="emit('skipStep')"
-            :title="`${$t('skip_to_next_stage')}:${WordPracticeStageNameMap[statStore.nextStage]}`"
+            :title="`${$t('skip_to_next_stage')}:${WordPracticeStageNameMap[statStore.nextStage]} (Alt+N)`"
           >
             <IconFluentArrowRight16Regular />
           </BaseIcon>
